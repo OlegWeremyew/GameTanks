@@ -1,18 +1,147 @@
-//Random integer
+/*
+    Random integer
+ */
+
 function randomInteger(min, max) {
     let rand = min - 0.5 + Math.random() * (max - min + 1);
     return Math.round(rand);
 }
 
+//Game Over ========================================================================
 
-//Init
-function init() {
-    gameZone.innerHTML += `<div class="player" style="left: ${player.x}px; top: ${player.y}px;"></div>`;
-    player.el = document.querySelector('.player');
+function gameOver() {
+
+    $.ajax({
+        url: `http://127.0.0.1:8000/api/results?level=${type}`,
+        type: "get",
+        dataType: "json",
+        contentType: 'application/json',
+        success(data) {
+
+            $('.results').html(` <tr>
+                <th>№</th>
+                <th>Имя игрока</th>
+                <th>Уровень</th>
+                <th>Очки</th>
+            </tr>`);
+
+            let key = 1;
+            let res = data;
+            res.forEach((item) => {
+                $('.results').append(`
+                     <tr>
+                        <td>${key}</td>
+                        <td>${item.name}</td>
+                        <td>${item.level}</td>
+                        <td>${item.points}</td>
+                     </tr>
+                `)
+                key += 1;
+            })
+        }
+    });
+
+    const data = {
+        name: player.name,
+        points: points,
+        type: type
+    };
+
+    $.ajax({
+        url: "http://127.0.0.1:8000/api/results",
+        type: "POST",
+        dataType: "json",
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success(data) {
+            console.log(data)
+        }
+    });
+
+    points = 0;
+    $('.inner-points').text(points);
+
+    document.querySelector('.game-over').classList.add('on');
+}
+
+//Restart Game ========================================================================
+
+function next() {
+
+    player.hp -= 1;
+
+    clearInterval(ints.enemy);
+    clearInterval(ints.run);
+    clearInterval(ints.bullet);
+    clearInterval(ints.generateEnemy);
+    clearInterval(ints.enemyBullet);
+    clearInterval(ints.checkEnemyBulletForPlayer);
+    clearInterval(ints.enemyShots);
+
+    let enemies = document.querySelectorAll('.enemy');
+
+    enemies.forEach((enemy) => {
+        enemy.parentNode.removeChild(enemy);
+    });
+
+    let enemyBullets = document.querySelectorAll('.enemy-bullet');
+
+    enemyBullets.forEach((bullet) => {
+        bullet.parentNode.removeChild(bullet);
+    });
+
+    let bullets = document.querySelectorAll('.bullet');
+
+    bullets.forEach((bullet) => {
+        bullet.parentNode.removeChild(bullet);
+    });
+
+    player.el.parentNode.removeChild(player.el);
+
+    if (player.hp === 0) {
+        return gameOver();
+    }
+
+    game();
 }
 
 
-//Intervals
+//Init ========================================================================
+
+function init() {
+
+    if (player.hp === 0) {
+        player.hp = 2;
+        points = 0;
+    }
+
+    $('.inner-name').text(player.name);
+
+    document.querySelector('.game-over').classList.remove('on');
+
+    player.x = gameZone.getBoundingClientRect().width / 2 - player.w;
+    player.y = gameZone.getBoundingClientRect().height - player.h;
+
+    gameZone.innerHTML += `<div class="player" style="left: ${player.x}px; top: ${player.y}px;"></div>`;
+    player.el = document.querySelector('.player');
+
+    switch (player.hp) {
+        case 2:
+            document.querySelector('.life').innerHTML = `<img src="src/sprites/heart-1.png" class="life__image">`;
+            break;
+        case 1:
+            document.querySelector('.life').innerHTML = `<img src="src/sprites/heart-2.png" class="life__image">`;
+            break;
+        case 0:
+            document.querySelector('.life').innerHTML = `<img src="src/sprites/heart-3.png" class="life__image">`;
+            break;
+    }
+
+
+}
+
+//Intervals ========================================================================
+
 function intervals() {
     ints.run = setInterval(() => {
         if (player.run) {
@@ -82,9 +211,67 @@ function intervals() {
 
         })
     }, fps);
+    ints.enemyBullet = setInterval(() => {
+        let bullets = document.querySelectorAll('.enemy-bullet');
+        bullets.forEach((bullet) => {
+            let direction = bullet.getAttribute('direction');
+
+            switch (direction) {
+                case 'top':
+                    if (bullet.getBoundingClientRect().top < 0) {
+                        bullet.parentNode.removeChild(bullet);
+                    } else {
+                        bullet.style.top = bullet.getBoundingClientRect().top - enemyBulletSpeed + 'px';
+                    }
+                    break;
+                case 'right':
+                    if (bullet.getBoundingClientRect().right > gameZone.getBoundingClientRect().width) {
+                        bullet.parentNode.removeChild(bullet);
+                    } else {
+                        bullet.style.left = bullet.getBoundingClientRect().left + enemyBulletSpeed + 'px';
+                    }
+                    break;
+                case 'bottom':
+                    if (bullet.getBoundingClientRect().bottom > gameZone.getBoundingClientRect().height) {
+                        bullet.parentNode.removeChild(bullet);
+                    } else {
+                        bullet.style.top = bullet.getBoundingClientRect().top + enemyBulletSpeed + 'px';
+                    }
+                    break;
+                case 'left':
+                    if (bullet.getBoundingClientRect().left < 0) {
+                        bullet.parentNode.removeChild(bullet);
+                    } else {
+                        bullet.style.left = bullet.getBoundingClientRect().left - enemyBulletSpeed + 'px';
+                    }
+                    break;
+            }
+
+        })
+    }, fps)
     ints.enemy = setInterval(() => {
         let enemies = document.querySelectorAll('.enemy');
         enemies.forEach((enemy) => {
+
+            const playerPosTop = player.el.getBoundingClientRect().top,
+                playerPosRight = player.el.getBoundingClientRect().right,
+                playerPosBottom = player.el.getBoundingClientRect().bottom,
+                playerPosLeft = player.el.getBoundingClientRect().left,
+                enemyPosTop = enemy.getBoundingClientRect().top,
+                enemyPosRight = enemy.getBoundingClientRect().right,
+                enemyPosBottom = enemy.getBoundingClientRect().bottom,
+                enemyPosLeft = enemy.getBoundingClientRect().left;
+
+
+            if (
+                playerPosTop < enemyPosBottom &&
+                playerPosBottom > enemyPosTop &&
+                playerPosRight > enemyPosLeft &&
+                playerPosLeft < enemyPosRight
+            ) {
+                next();
+            }
+
 
             let bullets = document.querySelectorAll('.bullet');
 
@@ -174,11 +361,117 @@ function intervals() {
 
 
         player.el = document.querySelector('.player');
-    }, 3000);
+    }, enemyGenerateSpeed);
+    ints.enemyShots = setInterval(() => {
+        let enemies = document.querySelectorAll('.enemy');
+        enemies.forEach((enemy) => {
+
+            let direction = enemy.getAttribute('direction');
+
+            switch (direction) {
+                case 'right':
+                    if (
+                        player.el.getBoundingClientRect().top > enemy.getBoundingClientRect().top &&
+                        player.el.getBoundingClientRect().top < enemy.getBoundingClientRect().bottom &&
+                        player.el.getBoundingClientRect().right < enemy.getBoundingClientRect().left
+                    ) {
+                        // alert('в зоне видимости')
+                        gameZone.innerHTML += `<div class="enemy-bullet" direction="left" style="left: ${enemy.getBoundingClientRect().left}px; top: ${enemy.getBoundingClientRect().top + 30}px;"></div>`;
+                        player.el = document.querySelector('.player');
+                    }
+                    if (enemy.getBoundingClientRect().left <= 0) {
+                        enemy.parentNode.removeChild(enemy);
+                    } else {
+                        enemy.style.left = enemy.getBoundingClientRect().left - 3 + 'px';
+                    }
+                    break;
+                case 'left':
+                    if (
+                        player.el.getBoundingClientRect().top > enemy.getBoundingClientRect().top &&
+                        player.el.getBoundingClientRect().top < enemy.getBoundingClientRect().bottom &&
+                        player.el.getBoundingClientRect().left > enemy.getBoundingClientRect().right
+                    ) {
+                        gameZone.innerHTML += `<div class="enemy-bullet" direction="right" style="left: ${enemy.getBoundingClientRect().right}px; top: ${enemy.getBoundingClientRect().top + enemy.getBoundingClientRect().height / 2 - 10}px;"></div>`;
+                        player.el = document.querySelector('.player');
+                    }
+
+                    if (enemy.getBoundingClientRect().left >= gameZone.getBoundingClientRect().width) {
+                        enemy.parentNode.removeChild(enemy);
+                    } else {
+                        enemy.style.left = enemy.getBoundingClientRect().left + 3 + 'px';
+                    }
+                    break;
+                case 'top':
+
+                    if (
+                        player.el.getBoundingClientRect().bottom < enemy.getBoundingClientRect().top &&
+                        player.el.getBoundingClientRect().right > enemy.getBoundingClientRect().left &&
+                        player.el.getBoundingClientRect().right < enemy.getBoundingClientRect().right
+                    ) {
+                        gameZone.innerHTML += `<div class="enemy-bullet" direction="top" style="left: ${enemy.getBoundingClientRect().left + enemy.getBoundingClientRect().width / 2 - 10}px; top: ${enemy.getBoundingClientRect().top}px;"></div>`;
+                        player.el = document.querySelector('.player');
+                    }
+
+                    if (enemy.getBoundingClientRect().top <= 0) {
+                        enemy.parentNode.removeChild(enemy);
+                    } else {
+                        enemy.style.top = enemy.getBoundingClientRect().top - 3 + 'px';
+                    }
+                    break;
+                case 'bottom':
+
+                    if (
+                        player.el.getBoundingClientRect().top > enemy.getBoundingClientRect().bottom &&
+                        player.el.getBoundingClientRect().right > enemy.getBoundingClientRect().left &&
+                        player.el.getBoundingClientRect().right < enemy.getBoundingClientRect().right
+                    ) {
+                        gameZone.innerHTML += `<div class="enemy-bullet" direction="bottom" style="left: ${enemy.getBoundingClientRect().left + enemy.getBoundingClientRect().width / 2 - 10}px; top: ${enemy.getBoundingClientRect().bottom}px;"></div>`;
+                        player.el = document.querySelector('.player');
+                    }
+
+                    if (enemy.getBoundingClientRect().bottom >= gameZone.getBoundingClientRect().height) {
+                        enemy.parentNode.removeChild(enemy);
+                    } else {
+                        enemy.style.top = enemy.getBoundingClientRect().top + 3 + 'px';
+                    }
+                    break;
+            }
+
+        })
+    }, enemyShotsSpeed)
+    ints.checkEnemyBulletForPlayer = setInterval(() => {
+        let bullets = document.querySelectorAll('.enemy-bullet');
+        bullets.forEach((bullet) => {
+
+            let direction = bullet.getAttribute('direction');
+
+            if (['top', 'left', 'right'].includes(direction)) {
+                if (
+                    bullet.getBoundingClientRect().top < player.el.getBoundingClientRect().bottom &&
+                    bullet.getBoundingClientRect().bottom > player.el.getBoundingClientRect().top &&
+                    bullet.getBoundingClientRect().right > player.el.getBoundingClientRect().left &&
+                    bullet.getBoundingClientRect().left < player.el.getBoundingClientRect().right
+                ) {
+                    next();
+                    bullet.parentNode.removeChild(bullet);
+                }
+            } else {
+                if (
+                    bullet.getBoundingClientRect().bottom > player.el.getBoundingClientRect().top &&
+                    bullet.getBoundingClientRect().right > player.el.getBoundingClientRect().left &&
+                    bullet.getBoundingClientRect().left < player.el.getBoundingClientRect().right
+                ) {
+                    next();
+                    bullet.parentNode.removeChild(bullet);
+                }
+            }
+
+        });
+    }, fps)
 }
 
+//Add Bullet========================================================================
 
-//Add Bullet
 function addBullet() {
 
     switch (player.side) {
@@ -199,9 +492,12 @@ function addBullet() {
     player.el = document.querySelector('.player');
 }
 
-// Controllers
+//Controllers ========================================================================
+
 function controllers() {
     document.addEventListener('keydown', (e) => {
+
+        //console.log(e.keyCode)
 
         switch (e.keyCode) {
             case 38: // Top
@@ -239,8 +535,8 @@ function controllers() {
 
 }
 
+//Start Game ========================================================================
 
-//Start Game
 function game() {
     init();
     controllers();
@@ -251,6 +547,7 @@ let gameZone = document.querySelector('.game-zone'),
     points = 0,
     fps = 1000 / 60,
     player = {
+        name: '',
         sprites: {
             top: 'src/sprites/player-top.png',
             right: 'src/sprites/player-right.png',
@@ -264,14 +561,55 @@ let gameZone = document.querySelector('.game-zone'),
         run: false,
         side: 1, //1 (top), 2 (right), 3 (bottom), 4 (left),
         w: 78,
-        h: 77
+        h: 77,
+        hp: 2
     },
     bulletSpeed = 10,
+    enemyBulletSpeed = 10,
+    enemyGenerateSpeed = 1000,
+    enemyShotsSpeed = 1000,
     ints = {
         run: false,
         bullet: false,
+        enemyBullet: false,
         enemy: false,
-        generateEnemy: false
-    };
+        generateEnemy: false,
+        enemyShots: false,
+        checkEnemyBulletForPlayer: false,
+        test: false
+    },
+    type = '',
+    test = []
 
-game();
+
+$('.levels__item').click(function () {
+    $('.levels__item').removeClass('active');
+    $(this).addClass('active');
+
+    type = $(this).attr('type');
+
+    switch (type) {
+        case 'light':
+            enemyBulletSpeed = 5;
+            enemyGenerateSpeed = 2000;
+            enemyShotsSpeed = 1500;
+            break;
+        case 'medium':
+            enemyBulletSpeed = 10;
+            enemyGenerateSpeed = 1000;
+            enemyShotsSpeed = 1000;
+            break;
+        case 'hard':
+            enemyBulletSpeed = 15;
+            enemyGenerateSpeed = 500;
+            enemyShotsSpeed = 500;
+            break;
+    }
+
+});
+
+$('.start-btn').click(function () {
+    player.name = $('.name-input').val();
+    $('.start-panel').removeClass('on')
+    game();
+});

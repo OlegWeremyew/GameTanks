@@ -18,6 +18,6 @@
     "url": "https://github.com/OlegWeremyew/GameTanks/issues"
   },
   "devDependencies": {
-    "gh-pages": "^3.2.3"
+    "gh-pages": "^4.0.0"
   }
 }

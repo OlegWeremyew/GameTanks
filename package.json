@@ -1,0 +1,17 @@
+{
+  "name": "game-tanks",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "gh-pages -d src"
+  },
+  "repository": {
+    "type": "git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {},
+  "devDependencies": {}
+}

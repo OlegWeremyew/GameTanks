@@ -1,17 +1,23 @@
 {
   "name": "game-tanks",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "tank battles online",
+  "main": "game.js",
+  "homepage": "https://github.com/OlegWeremyew/GameTanks",
   "scripts": {
     "deploy": "gh-pages -d src"
   },
   "repository": {
-    "type": "git"
+    "type": "git",
+    "url": "git+https://github.com/OlegWeremyew/GameTanks.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {},
-  "devDependencies": {}
+  "bugs": {
+    "url": "https://github.com/OlegWeremyew/GameTanks/issues"
+  },
+  "devDependencies": {
+    "gh-pages": "^3.2.3"
+  }
 }
